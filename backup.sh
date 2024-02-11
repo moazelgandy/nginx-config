@@ -9,7 +9,7 @@ DB_NAME="faca"
 BACKUP_DIR="/var/www/"
 
 # Dropbox access token
-DROPBOX_ACCESS_TOKEN="sl.BvZvWTcKklVBzpR1frPKYwp2vJfkJQEvxui7KjkzkZmO6FUEE5sxex4KYG-0PIKIpOlQm2pQ26vJGbXtRvLslMWtzHunnPDM8yJ2MUvtnqFmoD-qlVly-FN2Sc3Zl04nsvSU0s3-F7w5"
+DROPBOX_ACCESS_TOKEN="$DROPBOX_ACCESS_TOKEN"
 
 while true; do
     # Timestamp
@@ -28,18 +28,22 @@ while true; do
     if [ $? -eq 0 ]; then
         echo "Database backup created successfully: $BACKUP_FILE" >> /var/www/log_file.log
         
-        # Upload the backup file to Dropbox
+        # Define Dropbox API arguments
+        DBX_API_ARG="{\"path\": \"/Backup/$DB_NAME-$TIMESTAMP.sql\",\"mode\": \"add\",\"autorename\": true}"
+
+        # Upload the backup file to Dropbox and log the output
         curl -X POST \
              -H "Authorization: Bearer $DROPBOX_ACCESS_TOKEN" \
              -H "Content-Type: application/octet-stream" \
+             -H "Dropbox-API-Arg: $DBX_API_ARG" \
              --data-binary @"$BACKUP_FILE" \
-             "https://content.dropboxapi.com/2/files/upload" > /dev/null
+             "https://content.dropboxapi.com/2/files/upload" >> /var/www/log_file.log 2>&1
         
         # Check if the upload was successful
         if [ $? -eq 0 ]; then
-            echo "Backup uploaded to Dropbox successfully"
+            echo "Backup uploaded to Dropbox successfully" >> /var/www/log_file.log
         else
-            echo "Error: Failed to upload backup to Dropbox"
+            echo "Error: Failed to upload backup to Dropbox" >> /var/www/log_file.log
         fi
         
     else
