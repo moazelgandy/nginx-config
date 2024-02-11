@@ -4,7 +4,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/bin/bash /var/www/dbBackUp/backup.sh
+ExecStart=/bin/bash /var/www/backup.sh
 
 [Install]
 WantedBy=multi-user.target
