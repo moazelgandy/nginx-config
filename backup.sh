@@ -50,6 +50,6 @@ while true; do
         echo "Error: Database backup failed!" >> /var/www/log_file.log
     fi
 
-    # Sleep for 60 seconds
-    sleep 60
+    # Sleep for 60 minutes
+    sleep 3600
 done
