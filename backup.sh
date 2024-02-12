@@ -7,7 +7,7 @@ sudo apt-get -y install backblaze-b2
 sudo b2 authorize-account 005f539db404da40000000001 K005RFePkWVwW+nIP3x0YyqdGbpNG68
 
 # Create backup script
-cat <<EOF > backupSql.sh
+cat <<EOF > /home/ss/backupSql.sh
 #!/bin/bash
 
 # MySQL database details
