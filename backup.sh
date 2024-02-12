@@ -6,7 +6,7 @@ sudo apt-get -y install backblaze-b2
 # Authorize Backblaze B2 account
 sudo b2 authorize-account 005f539db404da40000000001 K005RFePkWVwW+nIP3x0YyqdGbpNG68
 
-# Create backup script
+# Create backup script with logfile
 cat <<EOF > /home/ss/backupSql.sh
 #!/bin/bash
 
@@ -22,6 +22,9 @@ BACKUP_DIR="/var/www/"
 BUCKET_NAME="EDU-DB-BackUp"
 DESTINATION_FOLDER="backups/"
 
+# Log file
+LOG_FILE="/var/www/backup.log"
+
 while true; do
     # Timestamp
     TIMESTAMP=\$(date +"%Y-%m-%d_%H-%M-%S")
@@ -32,22 +35,22 @@ while true; do
     # Backup filename
     BACKUP_FILE="\$BACKUP_DIR/\$DB_NAME-\$TIMESTAMP.sql"
 
-    # Dump the MySQL database
-    mysqldump -u\$DB_USER -p\$DB_PASS \$DB_NAME > \$BACKUP_FILE
+    # Dump the MySQL database and log output
+    mysqldump -u\$DB_USER -p\$DB_PASS \$DB_NAME > \$BACKUP_FILE 2>> \$LOG_FILE
 
     # Check if the backup was successful
     if [ \$? -eq 0 ]; then
-        echo "Database backup created successfully: \$BACKUP_FILE"
+        echo "Database backup created successfully: \$BACKUP_FILE" >> \$LOG_FILE
 
         # Upload backup to Backblaze B2
-        sudo b2 upload-file \$BUCKET_NAME \$BACKUP_FILE \$DESTINATION_FOLDER\$DB_NAME-\$TIMESTAMP.sql
+        sudo b2 upload-file \$BUCKET_NAME \$BACKUP_FILE \$DESTINATION_FOLDER\$DB_NAME-\$TIMESTAMP.sql 2>> \$LOG_FILE
         if [ \$? -eq 0 ]; then
-            echo "Backup uploaded to Backblaze B2 successfully"
+            echo "Backup uploaded to Backblaze B2 successfully" >> \$LOG_FILE
         else
-            echo "Error: Failed to upload backup to Backblaze B2"
+            echo "Error: Failed to upload backup to Backblaze B2" >> \$LOG_FILE
         fi
     else
-        echo "Error: Database backup failed!"
+        echo "Error: Database backup failed!" >> \$LOG_FILE
     fi
 
     # Sleep for 5 minutes
@@ -56,24 +59,23 @@ done
 EOF
 
 # Make backupSql.sh executable
-chmod +x backupSql.sh
-sudo rm /etc/systemd/system/backup.service
-cat <<EOF | sudo tee /etc/systemd/system/backup.service > /dev/null
+chmod +x /home/ss/backupSql.sh
+
+# Create and configure backup service
+sudo tee /etc/systemd/system/backup.service > /dev/null <<EOF
 [Unit]
 Description=Database Backup Service
 After=network.target
 
 [Service]
 Type=simple
-ExecStart=/bin/bash /home/ss/backupSql.sh
+ExecStart=/home/ss/backupSql.sh
 
 [Install]
 WantedBy=multi-user.target
 EOF
 
-# Reload systemd
+# Reload systemd and start backup service
 sudo systemctl daemon-reload
-
-# Enable and start the backup service
 sudo systemctl enable backup.service
 sudo systemctl start backup.service
