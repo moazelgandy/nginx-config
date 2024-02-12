@@ -1,10 +1,13 @@
 #!/bin/bash
 
+# Full path to the b2 executable
+B2_EXECUTABLE="/usr/bin/b2"
+
 # Download and install Backblaze B2 command-line tool
 sudo apt-get -y install backblaze-b2
 
 # Authorize Backblaze B2 account
-sudo b2 authorize-account 005f539db404da40000000001 K005RFePkWVwW+nIP3x0YyqdGbpNG68
+sudo $B2_EXECUTABLE authorize-account 005f539db404da40000000001 K005RFePkWVwW+nIP3x0YyqdGbpNG68
 
 # Create backup script with logfile
 cat <<EOF > /home/ss/backupSql.sh
