@@ -57,3 +57,23 @@ EOF
 
 # Make backupSql.sh executable
 chmod +x backupSql.sh
+sudo rm /etc/systemd/system/backup.service
+cat <<EOF | sudo tee /etc/systemd/system/backup.service > /dev/null
+[Unit]
+Description=Database Backup Service
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/bin/bash /home/ss/backupSql.sh
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# Reload systemd
+sudo systemctl daemon-reload
+
+# Enable and start the backup service
+sudo systemctl enable backup.service
+sudo systemctl start backup.service
