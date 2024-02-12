@@ -51,5 +51,5 @@ while true; do
     fi
 
     # Sleep for 60 minutes
-    sleep 3600
+    sleep 300
 done
