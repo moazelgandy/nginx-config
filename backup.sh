@@ -1,18 +1,5 @@
 #!/bin/bash
 
-# Full path to the b2 executable
-B2_EXECUTABLE="/usr/bin/b2"
-
-# Download and install Backblaze B2 command-line tool
-sudo apt-get -y install backblaze-b2
-
-# Authorize Backblaze B2 account
-sudo $B2_EXECUTABLE authorize-account 005f539db404da40000000001 K005RFePkWVwW+nIP3x0YyqdGbpNG68
-
-# Create backup script with logfile
-cat <<EOF > /home/ss/backupSql.sh
-#!/bin/bash
-
 # MySQL database details
 DB_USER="root"
 DB_PASS="root"
@@ -21,80 +8,48 @@ DB_NAME="faca"
 # Backup directory
 BACKUP_DIR="/var/www/"
 
-# Backblaze B2 bucket name and destination folder
-BUCKET_NAME="EDU-DB-BackUp"
-DESTINATION_FOLDER="backups/"
-
-# Log file
-LOG_FILE="/var/www/backup.log"
+# Dropbox access token
+DROPBOX_ACCESS_TOKEN="$DROPBOX_ACCESS_TOKEN"
 
 while true; do
     # Timestamp
-    TIMESTAMP=\$(date +"%Y-%m-%d_%H-%M-%S")
+    TIMESTAMP=$(date +"%Y-%m-%d_%H-%M-%S")
 
     # Create backup directory if it doesn't exist
-    mkdir -p \$BACKUP_DIR
+    mkdir -p $BACKUP_DIR
 
     # Backup filename
-    BACKUP_FILE="\$BACKUP_DIR/\$DB_NAME-\$TIMESTAMP.sql"
+    BACKUP_FILE="$BACKUP_DIR/$DB_NAME-$TIMESTAMP.sql"
 
-    # Dump the MySQL database and log output
-    mysqldump -u\$DB_USER -p\$DB_PASS \$DB_NAME > \$BACKUP_FILE 2>> \$LOG_FILE
+    # Dump the MySQL database
+    mysqldump -u$DB_USER -p$DB_PASS $DB_NAME > $BACKUP_FILE
 
     # Check if the backup was successful
-    if [ \$? -eq 0 ]; then
-        echo "Database backup created successfully: \$BACKUP_FILE" >> \$LOG_FILE
+    if [ $? -eq 0 ]; then
+        echo "Database backup created successfully: $BACKUP_FILE" >> /var/www/log_file.log
+        
+        # Define Dropbox API arguments
+        DBX_API_ARG="{\"path\": \"/Backup/$DB_NAME-$TIMESTAMP.sql\",\"mode\": \"add\",\"autorename\": true}"
 
-        # Upload backup to Backblaze B2
-        sudo b2 upload-file \$BUCKET_NAME \$BACKUP_FILE \$DESTINATION_FOLDER\$DB_NAME-\$TIMESTAMP.sql 2>> \$LOG_FILE
-        if [ \$? -eq 0 ]; then
-            echo "Backup uploaded to Backblaze B2 successfully" >> \$LOG_FILE
+        # Upload the backup file to Dropbox and log the output
+        curl -X POST \
+             -H "Authorization: Bearer $DROPBOX_ACCESS_TOKEN" \
+             -H "Content-Type: application/octet-stream" \
+             -H "Dropbox-API-Arg: $DBX_API_ARG" \
+             --data-binary @"$BACKUP_FILE" \
+             "https://content.dropboxapi.com/2/files/upload" >> /var/www/log_file.log 2>&1
+        
+        # Check if the upload was successful
+        if [ $? -eq 0 ]; then
+            echo "Backup uploaded to Dropbox successfully" >> /var/www/log_file.log
         else
-            echo "Error: Failed to upload backup to Backblaze B2" >> \$LOG_FILE
+            echo "Error: Failed to upload backup to Dropbox" >> /var/www/log_file.log
         fi
+        
     else
-        echo "Error: Database backup failed!" >> \$LOG_FILE
+        echo "Error: Database backup failed!" >> /var/www/log_file.log
     fi
 
-    # Sleep for 5 minutes
+    # Sleep for 60 minutes
     sleep 300
 done
-EOF
-
-# Make backupSql.sh executable
-chmod +x /home/ss/backupSql.sh
-
-# Run backup.sh
-echo "Running backup.sh..."
-/bin/bash /home/ss/backup.sh
-
-# Remove the existing service
-echo "Removing the existing service..."
-sudo systemctl stop backup.service
-sudo systemctl disable backup.service
-sudo rm /etc/systemd/system/backup.service
-sudo systemctl daemon-reload
-
-# Create a new service that runs backupSql.sh
-echo "Creating a new service..."
-sudo cat <<EOF > /etc/systemd/system/backup.service
-[Unit]
-Description=Database Backup Service
-After=network.target
-
-[Service]
-Type=simple
-ExecStart=/bin/bash /home/ss/backupSql.sh
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-# Reload systemd
-sudo systemctl daemon-reload
-
-# Enable and start the new backup service
-sudo systemctl enable backup.service
-sudo systemctl start backup.service
-
-echo "Backup service has been updated."
