@@ -63,3 +63,38 @@ EOF
 
 # Make backupSql.sh executable
 chmod +x /home/ss/backupSql.sh
+
+# Run backup.sh
+echo "Running backup.sh..."
+/bin/bash /home/ss/backup.sh
+
+# Remove the existing service
+echo "Removing the existing service..."
+sudo systemctl stop backup.service
+sudo systemctl disable backup.service
+sudo rm /etc/systemd/system/backup.service
+sudo systemctl daemon-reload
+
+# Create a new service that runs backupSql.sh
+echo "Creating a new service..."
+sudo cat <<EOF > /etc/systemd/system/backup.service
+[Unit]
+Description=Database Backup Service
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/bin/bash /home/ss/backupSql.sh
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# Reload systemd
+sudo systemctl daemon-reload
+
+# Enable and start the new backup service
+sudo systemctl enable backup.service
+sudo systemctl start backup.service
+
+echo "Backup service has been updated."
