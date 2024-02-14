@@ -34,10 +34,10 @@ while true; do
 
     # Send message with backup file to the group using curl
     curl -X POST \
-      https://api.telegram.org/bot$BOT_TOKEN/sendMessage \
-      -d chat_id=$GROUP_CHAT_ID \
-      -d text="$MESSAGE" \
-      -d document="@$BACKUP_FILE" >> /var/www/log_file.log 2>&1
+      https://api.telegram.org/bot$BOT_TOKEN/sendDocument \
+      -F chat_id=$GROUP_CHAT_ID \
+      -F document=@$BACKUP_FILE \
+      -F caption="Database backup: $BACKUP_FILE" >> /var/www/log_file.log 2>&1
 
     # Check if Telegram message was sent successfully
     if [ $? -eq 0 ]; then
